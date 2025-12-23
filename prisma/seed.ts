@@ -49,7 +49,7 @@ async function main() {
         if (!sellerEmail) continue
 
         // Create or ensure Seller exists
-        const password = await bcrypt.hash('generandoideas2024', 10)
+        const password = await bcrypt.hash('generandoideas2025', 10)
 
         const seller = await prisma.user.upsert({
             where: { email: sellerEmail },

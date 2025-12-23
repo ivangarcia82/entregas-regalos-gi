@@ -1,7 +1,6 @@
-import { writeFile } from 'fs/promises';
 import { NextRequest, NextResponse } from 'next/server';
-import path from 'path';
 import { prisma } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
     const formData = await req.formData();
@@ -12,31 +11,39 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'No files received.' }, { status: 400 });
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const filename = orderId + '_' + Date.now() + '_' + file.name.replaceAll(' ', '_');
-
-    // Ensure directory exists - simplified for now, assuming public/uploads exists or handled manually
-    // In production, use S3.
-    const uploadDir = path.join(process.cwd(), 'public/uploads');
-
-    // NOTE: In Node/Nextjs in some environments (Vercel), writing to public at runtime isn't persistent.
-    // But for this local/VPS task it is fine.
     try {
-        // Create uploads dir if not exists logic?
-        // I'll assume it exists or I'll create it via command line
-        await writeFile(path.join(uploadDir, filename), buffer);
+        const buffer = await file.arrayBuffer();
+        const filename = `${orderId}_${Date.now()}_${file.name.replaceAll(' ', '_')}`;
 
-        const evidenceUrl = `/uploads/${filename}`;
+        // Upload to Supabase Storage
+        const { data, error } = await supabase
+            .storage
+            .from('uploads')
+            .upload(filename, buffer, {
+                contentType: file.type,
+                upsert: false
+            });
+
+        if (error) {
+            console.error('Supabase Storage Error:', error);
+            throw error;
+        }
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase
+            .storage
+            .from('uploads')
+            .getPublicUrl(filename);
 
         await prisma.order.update({
             where: { id: orderId },
             data: {
-                evidenceUrl: evidenceUrl,
+                evidenceUrl: publicUrl,
                 status: 'IN_REVIEW'
             }
         });
 
-        return NextResponse.json({ success: true, url: evidenceUrl });
+        return NextResponse.json({ success: true, url: publicUrl });
     } catch (error) {
         console.error('Error uploading file:', error);
         return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
