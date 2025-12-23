@@ -53,7 +53,7 @@ async function main() {
 
         const seller = await prisma.user.upsert({
             where: { email: sellerEmail },
-            update: {}, // Don't overwrite if exists
+            update: { password: password }, // Force update password
             create: {
                 email: sellerEmail,
                 name: sellerName || 'Vendedor',
