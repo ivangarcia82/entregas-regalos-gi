@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
-    const filePath = path.join(process.cwd(), 'datos.xlsx')
+    const filePath = path.join(process.cwd(), 'entregasv2.xlsx')
     if (!fs.existsSync(filePath)) {
         console.error('File not found:', filePath)
         return
